@@ -4,7 +4,7 @@ init:
 	pip install -r requirements.txt
 
 parse:
-	python sample/parse.py URL
+	python sample/parse.py $(URL)
 
 test:
 	pytest tests
