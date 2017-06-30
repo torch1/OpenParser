@@ -19,7 +19,11 @@ class Webpage:
         strings = [string for string in soup.strings]
 
         # find links
-        links = [{"url": urljoin(self.url, a['href']), "name": _scrub(a.text) if _scrub(a.text) else a['href']} for a in soup.find_all("a") if a.get('href') is not None and a.get('href') is not "#" and a.get("href").startswith("mailto:") is not True]
+        _found_links = []
+        def merge(url):
+            _found_links.append(url)
+            return urljoin(self.url, url)
+        links = [{"url": merge(a['href']), "name": _scrub(a.text) if _scrub(a.text) else a['href']} for a in soup.find_all("a") if a.get('href') is not None and a.get('href') is not "#" and a.get("href").startswith("mailto:") is not True and a.get("href") not in _found_links]
 
         # find social media
         social_media = {}
@@ -45,7 +49,7 @@ class Webpage:
         for string in strings:
             for match in phone_regex.finditer(string):
                 extended = _get_desc_strings(strings, i)
-                if len(match.string) > 100 or _alpha_ratio(match.string) > 0.7:
+                if len(match.string) > 100:# or _alpha_ratio(match.string) > 0.4:
                     break
                 if ("EIN" in match.string or "EIN" in extended) and ("tax" in match.string or "tax" in extended):
                     continue
@@ -66,7 +70,9 @@ class Webpage:
         for email in [email for email in soup.find_all("a") if email.get("href") is not None and email.get("href").startswith("mailto:") is True]:
             if email.get('href').startswith("mailto:"):
                 email_address = email.get("href")[7:]
-                email_description = _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex)
+                if email_address in _emails_alone:
+                    continue
+                email_description = _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex, repl=email_address)
                 emails.append({
                     "address": email_address,
                     "extended": _scrub(email_description)
@@ -107,7 +113,7 @@ def _get_desc_strings(strings, i):
         return strings[i]
     return extended
 
-def _get_desc(element, minwords=3, maxlength=140, maxlevels=3, doesnt_include=None):
+def _get_desc(element, minwords=3, maxlength=140, maxlevels=3, doesnt_include=None, repl=""):
     levels = 0
     desc = element.getText()
     previous = element
@@ -115,7 +121,7 @@ def _get_desc(element, minwords=3, maxlength=140, maxlevels=3, doesnt_include=No
         if previous is None:
             break
         new_desc = previous.getText(separator=u' ')
-        if doesnt_include is not None and doesnt_include.match(new_desc):
+        if doesnt_include is not None and doesnt_include.match(new_desc.replace(repl, "")):
             break
         if _alpha_ratio(new_desc) < 0.7:
             break
@@ -141,14 +147,9 @@ def webpage_from_url(url):
 
 def _alpha_ratio(string):
     only = re.sub(r'\W+', '', string)
-    ratio = len(only) / (len(string) + 0.0)
+    ratio = len(only) / (len(string) + 0.01)
     return ratio
 
-def _alpha_ratio(string):
-    only = re.sub(r'\W+', '', string)
-    only = re.sub(r'\d+', '', only)
-    ratio = len(only) / (len(string) + 0.0)
-    return ratio
 
 # simple alias for constructor
 def webpage_from_text(html, url=""):
@@ -162,7 +163,8 @@ if len(sys.argv) is not 0:
         else:
             print "OpenParser (a Torch project) // licensed GPLv3"
             print "Parsed: " + sys.argv[1]
-            print "> " + data['description']
+            if data['description']:
+                print "> " + data['description']
             print "========= LINKS ========="
             for link in data['links']:
                 print ' '*4 + link['name']
@@ -177,7 +179,8 @@ if len(sys.argv) is not 0:
             print
             print "===== TELEPHONES ====="
             for telephone in data['telephones']:
-                print ' '*4 + telephone['extended'].replace("\n", " / ")
+                if telephone['extended']:
+                    print ' '*4 + telephone['extended'].replace("\n", " / ")
                 print ' '*8 + telephone['number'].replace("\n", " / ")
             print
             print "===== EMAILS ====="
