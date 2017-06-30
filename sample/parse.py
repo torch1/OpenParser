@@ -1,9 +1,11 @@
 from bs4 import BeautifulSoup
+import bs4
 import requests
 import re
 import sys
 import json
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
+from Queue import Queue
 
 email_regex = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
 phone_regex = re.compile(r"(?:(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?")
@@ -48,17 +50,21 @@ class Webpage:
         i = 0
         for string in strings:
             for match in phone_regex.finditer(string):
-                extended = _get_desc_strings(strings, i)
-                if len(match.string) > 100:# or _alpha_ratio(match.string) > 0.4:
+                extended = _get_desc_phone(strings, i)
+                number = match.group(0)
+                if len(match.string) > 100: # or _alpha_ratio(match.string) > 0.4:
                     break
                 if ("EIN" in match.string or "EIN" in extended) and ("tax" in match.string or "tax" in extended):
                     continue
                 if extended == match.string:
-                    extended = None
+                    if not len(_alpha(extended.replace(number, "")).strip()) > 0:
+                        extended = None
+                if extended.endswith(number):
+                    extended = extended[:-(len(number))].strip()
                 if match.string is None:
                     continue
                 telephones.append({
-                    "number": match.string,
+                    "number": number,
                     "extended": extended
                 })
                 break
@@ -95,8 +101,10 @@ class Webpage:
             "emails": emails
         }
 
-def _get_desc_strings(strings, i):
-    extended = ""
+def _get_desc_phone(strings, i):
+    extended = strings[i]
+    if len(re.sub(phone_regex, "", extended).strip()) > 0:
+        return extended
     j = i - 1
     while len(extended) < 100:
         try:
@@ -126,7 +134,12 @@ def _get_desc(element, minwords=3, maxlength=140, maxlevels=3, doesnt_include=No
         if _alpha_ratio(new_desc) < 0.7:
             break
         desc = new_desc
-        previous = previous.parent
+        if len(previous.parent.text) > len(previous.text)*8:
+            previous = previous.previousSibling
+            while isinstance(previous, bs4.element.NavigableString):
+                previous = previous.previousSibling
+        else:
+            previous = previous.parent
         levels += 1
     if len(desc) > maxlength:
         return "..." + desc[-maxlength:]
@@ -146,18 +159,49 @@ def webpage_from_url(url):
     return Webpage(requests.get(url).text, url)
 
 def _alpha_ratio(string):
-    only = re.sub(r'\W+', '', string)
+    only = _alpha(string)
     ratio = len(only) / (len(string) + 0.01)
     return ratio
 
+def _alpha(string):
+    only = re.sub(r'\W+', '', string)
+    return only
 
 # simple alias for constructor
 def webpage_from_text(html, url=""):
     return Webpage(html, url)
 
+def recursive_parse(url, verbose=False, max_depth=4, local=True):
+    hostname = urlparse(url).hostname
+    if verbose:
+        print "Recursively parsing site with max depth of " + str(max_depth) + " @ " + url
+    responses = []
+    queue = Queue()
+    queue.put((0, url))
+    seen_urls = []
+    while queue.qsize() > 0:
+        level, url = queue.get()
+        seen_urls.append(url.lower())
+        if verbose:
+            print '  ' + (" "*level) + " - " + url
+        response = webpage_from_url(url).parse()
+        responses.append(response)
+        if level + 1 <= max_depth:
+            for link in response['links']:
+                href = link['url']
+                if url.lower() not in seen_urls:
+                    if (not local) or (urlparse(link['url']).hostname == hostname):
+                        queue.put((level + 1, link['url']))
+                        seen_urls.put(link['url'].lower())
+    # todo: merge
+
 if len(sys.argv) is not 0:
     if len(sys.argv) >= 2:
-        data = webpage_from_url(sys.argv[1]).parse()
+        data = None
+        if "--recursive" in sys.argv:
+            data = recursive_parse(sys.argv[1], verbose=True)
+        else:
+            data = webpage_from_url(sys.argv[1]).parse()
         if "--json" in sys.argv:
             print json.dumps(data, indent=4)
         else:
