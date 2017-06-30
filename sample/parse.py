@@ -95,6 +95,7 @@ class Webpage:
         del _emails_alone # might as well, save memory
         return {
             "links": links,
+            "url": self.url,
             "social_media": social_media,
             "description": description,
             "telephones": telephones,
@@ -171,7 +172,7 @@ def _alpha(string):
 def webpage_from_text(html, url=""):
     return Webpage(html, url)
 
-def recursive_parse(url, verbose=False, max_depth=4, local=True):
+def recursive_parse(url, verbose=False, max_depth=1, local=True):
     hostname = urlparse(url).hostname
     if verbose:
         print "Recursively parsing site with max depth of " + str(max_depth) + " @ " + url
@@ -189,11 +190,31 @@ def recursive_parse(url, verbose=False, max_depth=4, local=True):
         if level + 1 <= max_depth:
             for link in response['links']:
                 href = link['url']
-                if url.lower() not in seen_urls:
-                    if (not local) or (urlparse(link['url']).hostname == hostname):
-                        queue.put((level + 1, link['url']))
-                        seen_urls.put(link['url'].lower())
-    # todo: merge
+                if href.lower() not in seen_urls:
+                    if (not local) or (urlparse(href).hostname == hostname):
+                        queue.put((level + 1, href))
+                        seen_urls.append(href.lower())
+
+def merge_responses(*responses):
+    out = {
+        "links": [],
+        "social_media": {},
+        "urls": {},
+        "telephones": [],
+        "emails": []
+    }
+    _seen_links = []
+    _seen_emails = []
+    for response in responses:
+        for link in response['links']:
+            # computational complexity: O(n^2) :)
+            if link['url'] not in _seen_links:
+                out['links'].append(link)
+                _seen_links.append(link['url'])
+        for k,v in response['social_media'].items():
+            if k not in out['social_media']:
+                out['social_media'][k] = []
+            out['social_media'][k]
 
 if len(sys.argv) is not 0:
     if len(sys.argv) >= 2:
