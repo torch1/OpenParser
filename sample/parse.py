@@ -34,10 +34,11 @@ class Webpage:
         for link in links:
             for site in _social_media_sites:
                 if site in link['url'].lower() and link['url'] not in _social_media_urls:
-                    if site not in social_media:
-                        social_media[site] = []
-                    social_media[site].append(link)
-                    _social_media_urls.append(link['url'])
+                    if not (site == "twitter.com" and "/intent/" in link['url']):
+                        if site not in social_media:
+                            social_media[site] = []
+                        social_media[site].append(link)
+                        _social_media_urls.append(link['url'])
         del _social_media_sites, _social_media_urls
 
         # find description
