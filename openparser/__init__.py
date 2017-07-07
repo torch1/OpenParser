@@ -1,3 +1,3 @@
 __version__ = '0.1.0'
-__all__ = ['parser']
+__all__ = ['parse']
 __name__ = "openparser"
