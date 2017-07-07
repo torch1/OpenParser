@@ -60,8 +60,8 @@ class Webpage:
                 if extended == match.string:
                     if not len(_alpha(extended.replace(number, "")).strip()) > 0:
                         extended = None
-                if extended.endswith(number):
-                    extended = extended[:-(len(number))].strip()
+                    elif extended.endswith(number):
+                        extended = extended[:-(len(number))].strip()
                 if match.string is None:
                     continue
                 telephones.append({
