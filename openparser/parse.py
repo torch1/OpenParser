@@ -77,14 +77,15 @@ class Webpage:
         for email in [email for email in soup.find_all("a") if email.get("href") is not None and email.get("href").startswith("mailto:") is True]:
             if email.get('href').startswith("mailto:"):
                 email_address = email.get("href")[7:]
-                if email_address in _emails_alone:
-                    continue
-                email_description = email.text + " (" + _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex, repl=email_address) + ")"
-                emails.append({
-                    "address": email_address,
-                    "extended": _scrub(email_description)
-                })
-                _emails_alone.append(email_address)
+                if not email_address.startswith("?"):
+                    if email_address in _emails_alone:
+                        continue
+                    email_description = email.text + " (" + _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex, repl=email_address) + ")"
+                    emails.append({
+                        "address": email_address,
+                        "extended": _scrub(email_description)
+                    })
+                    _emails_alone.append(email_address)
         for string in [s for s in strings if email_regex.match(s)]:
             for match in email_regex.finditer(string):
                 if match.string not in _emails_alone:
