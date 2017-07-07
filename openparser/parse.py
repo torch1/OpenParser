@@ -79,7 +79,9 @@ class Webpage:
                 email_address = email.get("href")[7:]
                 if email_address in _emails_alone:
                     continue
-                email_description = _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex, repl=email_address)
+                email_description = email.text
+                if email_description == email_address:
+                    email_description = _get_desc(email, minwords=4, maxlevels=2, doesnt_include=email_regex, repl=email_address)
                 emails.append({
                     "address": email_address,
                     "extended": _scrub(email_description)

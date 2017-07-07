@@ -41,3 +41,6 @@ def main():
                         print ' '*8 + email['address'].replace("\n", " / ")
         else:
             print "please pass in a URL as the first argument!"
+
+if __name__ == '__main__':
+    main()
