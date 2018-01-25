@@ -29,7 +29,7 @@ class Webpage:
 
         # find social media
         social_media = {}
-        _social_media_sites = ["facebook.com", "youtube.com", "twitter.com", "linkedin.com", "github.com", "plus.google.com"]
+        _social_media_sites = ["facebook.com", "youtube.com", "twitter.com", "linkedin.com", "github.com", "plus.google.com", "instagram.com"]
         _social_media_urls = []
         for link in links:
             for site in _social_media_sites:
@@ -57,7 +57,7 @@ class Webpage:
                     break
                 if ("EIN" in match.string or "EIN" in extended) and ("tax" in match.string or "tax" in extended):
                     continue
-                if extended == match.string:
+                if extended and extended == match.string:
                     if not len(_alpha(extended.replace(number, "")).strip()) > 0:
                         extended = None
                     elif extended.endswith(number):
